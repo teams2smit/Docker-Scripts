@@ -1,0 +1,93 @@
+version: '3.0'
+services:
+  pmsdiscoveryserver:
+    container_name: pmsdiscoveryserver
+    build:
+      context: ./eureka-discovery-server
+      dockerfile: Dockerfile
+    ports:
+      - "8761:8761"
+
+  api-gateway:
+    container_name: pmsapigateway
+    build:
+      context: ./api-gateway
+      dockerfile: Dockerfile
+    environment:
+      - eureka.client.service-url.defaultZone=http://pmsdiscoveryserver:8761/eureka/
+      - eureka.instance.prefer-ip-address=true
+      - spring.cloud.gateway.routes[0].id=medical-stock-service
+      - spring.cloud.gateway.routes[0].uri=lb://medical-stock-service
+      - spring.cloud.gateway.routes[0].predicates[0]=Path=/stock/**
+
+      - spring.cloud.gateway.routes[1].id=authorization-service
+      - spring.cloud.gateway.routes[1].uri=lb://authorization-service
+      - spring.cloud.gateway.routes[1].predicates[0]=Path=/auth/**
+
+      - spring.cloud.gateway.routes[2].id=schedule-service
+      - spring.cloud.gateway.routes[2].uri=lb://schedule-service
+      - spring.cloud.gateway.routes[2].predicates[0]=Path=/schedule/**
+      
+      - spring.cloud.gateway.routes[3].id=supply-service
+      - spring.cloud.gateway.routes[3].uri=lb://supply-service
+      - spring.cloud.gateway.routes[3].predicates[0]=Path=/supply/**
+    depends_on:
+      - pmsdiscoveryserver
+
+    ports:
+      - "8084:8084"
+ 
+  pms-stock-service:
+    container_name: pmsstockservice
+    build:
+      context: ./pms-stock-service
+      dockerfile: Dockerfile
+    environment:
+      - eureka.client.service-url.defaultZone=http://pmsdiscoveryserver:8761/eureka/
+      - eureka.instance.prefer-ip-address=true
+    depends_on:
+      - pmsdiscoveryserver
+    ports:
+      - "8086:8086"
+ 
+  pms-auth-service:
+    container_name: pmsauthservice
+    build:
+      context: ./pms-auth-service
+      dockerfile: Dockerfile
+    environment:
+      - eureka.client.service-url.defaultZone=http://pmsdiscoveryserver:8761/eureka/
+      - eureka.instance.prefer-ip-address=true
+    depends_on:
+      - pmsdiscoveryserver
+    ports:
+      - "8085:8085"
+ 
+  pms-schedule-service:
+    container_name: pmsscheduleservice
+    build:
+      context: ./pms-schedule-updated
+      dockerfile: Dockerfile
+    environment:
+      - eureka.client.service-url.defaultZone=http://pmsdiscoveryserver:8761/eureka/
+      - eureka.instance.prefer-ip-address=true
+    depends_on:
+      - pmsdiscoveryserver
+      - pms-stock-service
+    ports:
+      - "8088:8088"
+ 
+  pms-supply-service:
+    container_name: pmssupplyservice
+    build:
+      context: ./pms-supply-service
+      dockerfile: Dockerfile
+    environment:
+      - eureka.client.service-url.defaultZone=http://pmsdiscoveryserver:8761/eureka/
+      - eureka.instance.prefer-ip-address=true
+    depends_on:
+      - pmsdiscoveryserver
+      - pms-stock-service
+      - pms-schedule-service
+    ports:
+      - "8082:8082"
